@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { signInWithPopup } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, googleProvider, handleFirestoreError, OperationType, getFriendlyErrorMessage } from '../lib/firebase';
 import { ShieldCheck, User, Truck, FlaskConical, Activity, ArrowRight, Chrome } from 'lucide-react';
 import { UserRole, useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function AuthPage() {
   const { user, profile, setProfile } = useAuth();
+  const { addToast } = useToast();
   const [role, setRole] = useState<UserRole>('patient');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +20,7 @@ export default function AuthPage() {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
+      addToast("Failed to sign in with Google", "error");
       setError(err.message);
     } finally {
       setLoading(false);
@@ -41,7 +44,9 @@ export default function AuthPage() {
       const docRef = doc(db, 'users', user.uid);
       await setDoc(docRef, newProfile);
       setProfile(newProfile);
+      addToast("Welcome to PharmaTrust!", "success");
     } catch (err: any) {
+       addToast(getFriendlyErrorMessage(err), "error");
        handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}`);
     } finally {
       setLoading(false);

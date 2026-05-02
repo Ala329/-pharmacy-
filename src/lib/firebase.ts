@@ -34,6 +34,23 @@ interface FirestoreErrorInfo {
   }
 }
 
+export function getFriendlyErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    try {
+      const errInfo: FirestoreErrorInfo = JSON.parse(error.message);
+      if (errInfo.error.includes('permission-denied')) {
+        return "You don't have permission to perform this action.";
+      }
+      if (errInfo.error.includes('unavailable')) {
+        return "Service is temporarily unavailable. Please try again later.";
+      }
+    } catch {
+      // Not a structured JSON error
+    }
+  }
+  return "An unexpected error occurred. Please try again.";
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
