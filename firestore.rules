@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function getUserData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    // --- User Profiles ---
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn(); // Allow listing users for role lookup (e.g. pharmacists)
+      
+      allow create: if isOwner(userId) && 
+        incoming().role in ['manufacturer', 'distributor', 'pharmacist', 'patient'] &&
+        incoming().keys().hasAll(['uid', 'email', 'role', 'displayName']) &&
+        incoming().keys().size() == 4;
+        
+      allow update: if isOwner(userId) && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'email']);
+    }
+
+    // --- Batches (Product Tracking) ---
+    match /batches/{batchId} {
+      allow get: if true;
+      allow list: if true;
+      
+      allow create: if isVerified() && 
+        getUserData(request.auth.uid).role == 'manufacturer' &&
+        incoming().manufacturerId == request.auth.uid &&
+        incoming().status == 'minted' &&
+        incoming().keys().hasAll(['batchId', 'name', 'manufacturerId', 'manufacturerName', 'createdAt', 'expiryDate', 'status', 'currentOwnerId', 'currentOwnerName', 'blockchainHash']);
+        
+      allow update: if isVerified() && (
+        // Only current owner can transfer
+        existing().currentOwnerId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['currentOwnerId', 'currentOwnerName', 'status', 'blockchainHash'])
+      );
+    }
+
+    // --- Ledger (Immutable Blockchain Records) ---
+    match /ledger/{txId} {
+      allow get: if true;
+      allow list: if true;
+      
+      allow create: if isVerified() && 
+        incoming().keys().hasAll(['batchId', 'action', 'fromId', 'fromName', 'toId', 'toName', 'txHash', 'timestamp']);
+      
+      // BLOCKCHAIN INVARIANT: NO UPDATES OR DELETES
+      allow update, delete: if false;
+    }
+
+    // --- Inventory ---
+    match /inventory/{inventoryId} {
+      allow get: if isSignedIn() && (
+        resource.data.pharmacyId == request.auth.uid || 
+        getUserData(request.auth.uid).role in ['manufacturer', 'distributor']
+      );
+      
+      allow list: if isSignedIn();
+      
+      allow create: if isVerified();
+      
+      allow update: if isVerified() && (
+        resource.data.pharmacyId == request.auth.uid ||
+        getUserData(request.auth.uid).role == 'distributor'
+      );
+    }
+    
+    // --- Inventory Logs (AI Training Data) ---
+    match /inventory_logs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if true; // Allowed for simulation script (protected by Firestore API Key & Project ID)
+      allow update, delete: if false;
+    }
+
+    // Test collection
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

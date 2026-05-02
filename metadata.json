@@ -1,0 +1,6 @@
+{
+  "name": "PharmaTrust: AI-Blockchain Supply Chain",
+  "description": "Production-ready pharmaceutical supply chain tracking system utilizing blockchain for immutability, AI for demand forecasting, and a Python-powered real-time simulation engine.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}

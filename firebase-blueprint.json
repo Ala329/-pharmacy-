@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "App user with role-based access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["manufacturer", "distributor", "pharmacist", "patient"] },
+        "displayName": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Batch": {
+      "title": "Medicine Batch",
+      "description": "A tracked batch of pharmaceutical products",
+      "type": "object",
+      "properties": {
+        "batchId": { "type": "string" },
+        "name": { "type": "string" },
+        "manufacturerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiryDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["minted", "in_transit", "delivered", "dispensed"] },
+        "currentOwnerId": { "type": "string" },
+        "blockchainHash": { "type": "string" }
+      },
+      "required": ["batchId", "name", "manufacturerId", "status"]
+    },
+    "LedgerEntry": {
+      "title": "Blockchain Ledger Entry",
+      "description": "Immutable log of batch transfers",
+      "type": "object",
+      "properties": {
+        "batchId": { "type": "string" },
+        "action": { "type": "string" },
+        "fromId": { "type": "string" },
+        "toId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "txHash": { "type": "string" }
+      },
+      "required": ["batchId", "action", "timestamp", "txHash"]
+    },
+    "Inventory": {
+      "title": "Pharmacy Inventory",
+      "description": "Stock levels for medicines at a specific pharmacy",
+      "type": "object",
+      "properties": {
+        "pharmacyId": { "type": "string" },
+        "medicineName": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "threshold": { "type": "integer" }
+      },
+      "required": ["pharmacyId", "medicineName", "quantity"]
+    },
+    "InventoryLog": {
+      "title": "Inventory Movement Log",
+      "description": "Historical logs of inventory changes for AI analysis",
+      "type": "object",
+      "properties": {
+        "batchId": { "type": "string" },
+        "medicineName": { "type": "string" },
+        "quantityChange": { "type": "integer" },
+        "action": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["medicineName", "quantityChange", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "batches/{batchId}": {
+      "schema": "Batch",
+      "description": "Medicine batch tracking"
+    },
+    "ledger/{txId}": {
+      "schema": "LedgerEntry",
+      "description": "Immutable blockchain-style ledger"
+    },
+    "inventory/{inventoryId}": {
+      "schema": "Inventory",
+      "description": "Pharmacy stock levels"
+    },
+    "inventory_logs/{logId}": {
+      "schema": "InventoryLog",
+      "description": "Chronological history of stock movements"
+    }
+  }
+}
